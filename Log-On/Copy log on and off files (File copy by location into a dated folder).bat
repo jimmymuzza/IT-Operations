@@ -1,0 +1,1 @@
+Xcopy  /S /I /E \\<FILE LOCATION>\Logon_logs  \\<FILE LOCATION>\Logon_logs_secure\%date:~-4,4%%date:~-7,2%%date:~-10,2%
