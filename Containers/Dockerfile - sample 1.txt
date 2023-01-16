@@ -1,0 +1,19 @@
+# Sample Dockerfile to build a Windows Web Server
+
+# Indicates that the windowsservercore image will be used as the base image
+FROM microsoft/windowsservercore
+
+# Metadata indicating an image maintainer
+MAINTAINER @mike_pfeiffer
+
+# Uses PowerShell to install the web server role
+RUN PowerShell.exe -Command Install-WindowsFeature Web-Server
+
+# Copies an HTML file to the web server root
+COPY ./websrc c:/inetpub/wwwroot
+
+# Sets a command or process that will run each time a container is run from the new image
+CMD [ "powershell" ]
+
+
+docker run -it -v C:\containerdata:c:\mydata wincontainers/web powershell
