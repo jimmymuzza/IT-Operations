@@ -1,0 +1,12 @@
+On DC
+
+djoin /provision /domain <DOMAIN NAME> /machine ##Machine Asset Tag## /savefile c:/Djoin.txt /reuse
+
+djoin /provision /domain <DOMAIN NAME> /machine <ASSET TAG> /savefile c:/COMPUTERNAMEDjoin.txt
+
+on off domain computer (storm)
+
+Put file on to C:\
+In admin PS
+
+djoin /requestodj /loadfile C:\COMPUTERNAMEdjoin.txt /windowspath C:\windows /localos
