@@ -1,0 +1,107 @@
+<#
+Overview: PowerShell Script To Remove GroupExists Membership for Disabled users in AD
+Requires: ActiveDirectory PowerShell Module
+Usage: Edit the variables below to match your requirements and run the script
+#>
+clear-host
+Import-Module "ActiveDirectory"
+
+### Start Variables ###
+$date = Get-Date -Format "MM-dd-yyyy_hh-mm-ss"
+$threeMonthsAgo = ((Get-Date).AddDays(-90)).Date #user creation date
+$LogFile = 'C:\scripts\Logs\GroupsCleanup\' + $date + "_GroupsCleanup.log" #Provide the path to the file for a report on the GroupExists members
+$individually_added_disabled_users = @()
+$nested_disabled_users = @()
+$directuser = @()
+$nesteduser = @()
+$directGrp = @()
+$nestedGrp = @()
+### End Variables ###
+
+#Enter groups here, separated by quotes:
+$Groups = @(
+            'Account Operators'
+            'Recipient Management'
+            'Domain Admins'
+            'Schema Admins'
+            'Administrators'
+            'Backup Operators'
+            'Enterprise Admins'
+            'Group Policy Creator Owners'
+            'Organization Management'
+            )
+
+## Check if Group exists
+if ($Groups.Count -eq 0)
+{
+    Write-host "--------------------------------------------"-ForegroundColor Yellow
+    Write-host "Target Groups not found in script...Exiting" -ForegroundColor Yellow
+    Write-host "--------------------------------------------"-ForegroundColor Yellow
+    exit
+}
+
+## Loop through each "Groups"
+foreach ($GroupName in $Groups)
+{
+ write-host "`n"
+ Write-Host "***Processing AD Group Object ""$GroupName""" -ForegroundColor White
+ 
+try {
+$Group = Get-ADGroup $GroupName -Properties name
+$nested_group = (Get-ADGroupMember -Identity $Group | where-object {$_.objectClass -eq 'group'})
+
+if ($nested_group){ 
+    Write-Host "***Found Nested AD Group Objects ""$nested_group""" -ForegroundColor White
+    }
+    else{
+     Write-Host "***Found No Nested AD Group Objects ""$nested_group""" -ForegroundColor White
+    }
+
+##Read current individually added users
+$individually_added_disabled_users += (Get-ADGroupMember -identity $Group | Where-Object {$_.objectClass -eq 'user'} | Get-AdUser -Properties Name, WhenCreated | Where {$_.Enabled -eq $False -and $_.whencreated -le $threeMonthsAgo} | select -expand Name)
+
+##Read group membership of nested groups
+$nested_disabled_users += (Get-ADGroupMember -identity $Group | Where-Object {$_.objectClass -eq 'group'} | Get-ADGroupMember -Recursive | Get-AdUser -Properties Name, WhenCreated | Where {$_.Enabled -eq $False -and $_.whencreated -le $threeMonthsAgo} | select -expand Name)
+
+## No users found in scope of GRoup removal
+if (!$individually_added_disabled_users) {
+   Write-Host "`nNo Direct added users found to be removed from $Group`n" -ForegroundColor Yellow
+   }
+
+## No users found in scope of Group removal
+if (!$nested_disabled_users) {
+   Write-Host "`nNo Nested Disabled users found to be removed from $Group`n" -ForegroundColor Yellow
+   }
+
+#loop through each user to remove and remove them
+foreach ($directuser in $individually_added_disabled_users)
+    {
+        foreach ($directGrp in $Group)
+        {
+                Write-Host "Removing $($directuser) from Group $directGrp" -ForegroundColor green
+                remove-adGroupmember $directGrp –members $user -confirm:$False -ErrorAction Stop -whatif
+                Write-Output "User $($directuser) removed from Group $($directGrp)" | Out-File $LogFile -Append
+               }
+               $individually_added_disabled_users = @()
+       }
+
+foreach ($nesteduser in $nested_disabled_users)
+    {
+        foreach ($nestedGrp in $nested_group)
+        {
+                Write-Host "`Removing $($nesteduser) from Nested Group $nestedGrp" -ForegroundColor green
+                remove-adGroupmember $nestedGrp –members $user -confirm:$False -ErrorAction Stop -whatif
+                Write-Output "User $($nesteduser) removed from Nested Group $($nestedGrp)" | Out-File $LogFile -Append
+               }
+                
+       }
+       $nested_disabled_users = @()
+       $nested_group =@()
+}
+catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException]
+{
+Write-Warning “AD Group object ""$GroupName"" not found”
+}
+catch {}
+
+}
