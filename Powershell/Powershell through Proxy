@@ -1,0 +1,12 @@
+
+# Add for authentication to proxy:
+[system.net.webrequest]::defaultwebproxy = new-object system.net.webproxy('http://gateway.zscalerthree.net:9400')
+[system.net.webrequest]::defaultwebproxy.credentials = [System.Net.CredentialCache]::DefaultNetworkCredentials
+[system.net.webrequest]::defaultwebproxy.BypassProxyOnLocal = $true
+
+
+
+# Add for non authenticating proxy
+
+[System.Net.WebRequest]::DefaultWebProxy = [System.Net.WebRequest]::GetSystemWebProxy()
+[System.Net.WebRequest]::DefaultWebProxy.Credentials = [System.Net.CredentialCache]::DefaultNetworkCredentials
